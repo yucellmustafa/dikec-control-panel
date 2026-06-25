@@ -136,8 +136,16 @@ zte paneli AT'yi ubus'tan emüle ediyordu; F50'de `sendat` ile **gerçek AT** va
 - Tek token/chat_id `/data/dikec`'ten (statusbot'tan göç). Long-poll + `poll_*` (heartbeat, schedules, sms-forward, tasks) — **tek bash döngüsü**, ekstra process yok.
 
 ### 4.7 Entegrasyonlar (mevcut modüller — yeniden yazılmaz, yüzeylenir)
-- **DNS/Adblock:** zte'nin dnsmasq-adblock'u TAŞINMAZ; bunun yerine mevcut **adguardhome** modülü panel/bottan yönetilir (start/stop/log/query).
 - **Tailscale** (tailscale-control), **Tor** (tor-relay), **SSH** (dropbear-ssh), **traffic-stats**, **clients**, **module install/update** — statusbot'taki entegrasyonlar `integrations.sh`'a taşınır.
+- **AdGuard Home KALDIRILIR** — yerine panel-native adblock (§4.9). AGH ~30-40 MB Go binary'sini boşaltmak net RAM kazancıdır.
+
+### 4.9 Adblock (panel-native, hafif dnsmasq sinkhole) — `lib/core/adblock.sh`
+zte'nin dnsmasq-adblock mantığı F50'ye taşınır; **cihazda zaten `/system/bin/dnsmasq` var** (yeni binary yok).
+- **Mekanizma:** Kendi **ikinci dnsmasq** örneğimiz `127.0.0.1:5354`'te çalışır. Config: `addn-hosts=/data/dikec/adblock/hosts` (bloklu domain → `0.0.0.0`), `server=127.0.0.1#53` (stok dnsmasq/modem upstream). Stok tethering dnsmasq'ına (`192.168.0.1:53`) **dokunulmaz**.
+- **Yakalama:** iptables `nat PREROUTING`, hotspot bridge (br0) kaynaklı `udp/tcp --dport 53` → `REDIRECT --to-ports 5354`. Cihazın kendi sorguları etkilenmez.
+- **Liste yönetimi:** `adblock-update` (zte portu) — stevenblack/hagezi/adaway preset + özel URL'ler + whitelist çekilir, `hosts`/`||domain^`/plain formatları parse edilir, dedup → `addn-hosts` dosyası, `kill -HUP dnsmasq_inst`. VPN açıkken liste indirme socks üzerinden.
+- **Kontrol:** panel + bot (aç/kapa, listeler, whitelist, "şimdi güncelle", domain sayısı). Ayrı cron yok — güncelleme bot poll döngüsünden tetiklenir (manuel + opsiyonel günlük).
+- **Kaynak:** ikinci dnsmasq ~1-2 MB; AdGuard Home'a göre dramatik tasarruf.
 
 ### 4.8 Self-update & watchdog
 - **Update:** zte-update portu — `latest.txt` kontrol + SHA256 + zip + reinstall. Bottan/panelden onaylı.
@@ -148,11 +156,11 @@ zte paneli AT'yi ubus'tan emüle ediyordu; F50'de `sendat` ile **gerçek AT** va
 ## 5. Taşınan özellik kapsamı (zte paneli → F50)
 
 **DAHİL (Tier 1 + F50'ye uyan Tier 2):**
-Xray core (start/stop/restart/switch), profiller (list/switch/save/edit/delete), **vmess/vless/trojan import + abonelik URL import** (xray-import portu, multi-profil), probe/latency + "en hızlıya geç", per-client bypass, backup/restore, config editör, route-mode toggle (F50'ye özgü ekleme), throughput/monitor, status tiles (15s cache), **SMS merkezi + SMS uzaktan-komut**, cellular (sinyal/cellinfo/cell-radar/geolocation/AT/airplane via sendat), Tailscale, SSH, AdGuard (adblock yerine), Tor, update (self-update), reboot/password/web-shell/file/backup, scheduling (bot poll döngüsü — cron yok), QR, Telegram bildirim.
+Xray core (start/stop/restart/switch), profiller (list/switch/save/edit/delete), **vmess/vless/trojan import + abonelik URL import** (xray-import portu, multi-profil), probe/latency + "en hızlıya geç", per-client bypass, backup/restore, config editör, route-mode toggle (F50'ye özgü ekleme), throughput/monitor, status tiles (15s cache), **SMS merkezi + SMS uzaktan-komut**, cellular (sinyal/cellinfo/cell-radar/geolocation/AT/airplane via sendat), **panel-native adblock (ikinci dnsmasq sinkhole — §4.9)**, Tailscale, SSH, Tor, update (self-update), reboot/password/web-shell/file/backup, scheduling (bot poll döngüsü — cron yok), QR, Telegram bildirim.
 
 **STUB/DENEYSEL:** band lock (yalnızca AT, deneysel), HTTPS panel (opsiyonel 2. xray — sonraya), Tailscale-egress-via-VPN (2. xray — sonraya).
 
-**HARİÇ (taşınmaz, donanım/modem'e özgü):** band-optimizer binary, APN set, network-mode (4G/5G NSA/SA) set, NFC WiFi paylaşımı, modem-ttl binary, ZTE USB modları, carrier-aggregation readout, dnsmasq-adblock (adguardhome ile ikame).
+**HARİÇ (taşınmaz, donanım/modem'e özgü):** band-optimizer binary, APN set, network-mode (4G/5G NSA/SA) set, NFC WiFi paylaşımı, modem-ttl binary, ZTE USB modları, carrier-aggregation readout.
 
 ---
 
@@ -162,6 +170,7 @@ Xray core (start/stop/restart/switch), profiller (list/switch/save/edit/delete),
 - **vpn-gateway:** tun0 modunda dokunulmadan kullanılır; xray tun0'ı sağlar, vpn-gateway LAN→tun0 yönlendirir.
 - **sms-cmd:** çakışma yok; kuruluysa config'i yönetilir, değilse kendi motoru.
 - **statusbot:** içeri alınır + emekliye ayrılır (customize.sh: config göçü + `statusbot/disable`). uninstall.sh geri-yükleme seçeneği sunar.
+- **adguardhome:** KALDIRILIR. customize.sh kuruluysa devre dışı bırakır/temizlemeyi önerir; panel-native adblock (§4.9) DNS sinkhole görevini devralır. (AGH'nin bıraktığı iptables DNS redirect kuralları temizlenir.)
 - **Paketleme:** GitHub Actions ile module.prop değişiminde versiyonlu zip + update.json (ekosistemle aynı). Yerel kurulum zip'i de üretilir.
 
 ---
@@ -175,6 +184,7 @@ Cihaz boşta ~40 MB RAM. Tasarım ilkeleri:
 4. **Cold cache (15s TTL)** — CPU/RAM/temp/sinyal tekrar okunmaz; AT çağrıları minimumda.
 5. **Log rotasyonu** bin-utils `log_rotate` (512 KB cap).
 6. **xray config yalın** (gereksiz sniffing/route kuralı yok); APK-VPN'e (V2rayTun) göre net RAM kazancı (LMK kill'leri azalır).
+6b. **AdGuard Home kaldırılır** (~30-40 MB Go binary) → yerine ~1-2 MB ikinci dnsmasq sinkhole. DNS bloklamada büyük RAM kazancı.
 7. **Frontend** framework'süz; sekme gizliyken polling durur; ayarlanabilir aralık; httpd varsayılan localhost.
 8. **Speedtest gibi ağır işler opsiyonel/manuel**; varsayılan latency probe (1-2 sn).
 
@@ -184,7 +194,7 @@ Cihaz boşta ~40 MB RAM. Tasarım ilkeleri:
 
 ## 8. Kurulum / kaldırma / temizlik
 
-- **customize.sh:** bin-utils kontrolü → statusbot config göçü (`/data/statusbot/*` → `/data/dikec/*`) → statusbot disable → binary izinleri (set_perm xray, hev-socks5-tunnel, *.sh, *.cgi).
+- **customize.sh:** bin-utils kontrolü → statusbot config göçü (`/data/statusbot/*` → `/data/dikec/*`) → statusbot disable → **adguardhome disable + temizlik önerisi** → binary izinleri (set_perm xray, hev-socks5-tunnel, *.sh, *.cgi).
 - **Bozuk dcp-engine kaldırma:** Cihazdan `dcp-engine` modülü kaldırılır; yerel eski `~/f50-remote-adb/dikec-control-panel` (top-level) dizini ve `dcp-engine-v0.1.0-f50.zip` temizlenir (yeni modül `magisk-modules/dikec-control-panel`'de).
 - **uninstall.sh:** `/data/dikec` temizliği; statusbot'u tekrar enable etme seçeneği.
 
