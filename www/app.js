@@ -1285,12 +1285,17 @@
         '<div id="mod-catalog"></div>',
       '</div>',
       '<div class="card">',
-        '<h3>Zip\'den Kur</h3>',
+        '<h3>Modül Kur (katalog dışı)</h3>',
+        '<p class="hint" style="margin-top:0">Katalogda olmayan herhangi bir Magisk modülünü zip dosyası veya https URL ile kurabilirsin.</p>',
         '<div class="row" style="align-items:center;gap:10px;flex-wrap:wrap">',
           '<input type="file" id="mod-zip-input" accept=".zip" style="flex:1;min-width:160px">',
           '<button class="btn primary sm" id="mod-zip-btn">&#8679; Yükle &amp; Kur</button>',
         '</div>',
-        '<p class="hint">Magisk modülü zip dosyasını seçin. Kurulum sonrası reboot gereklidir.</p>',
+        '<div class="row" style="align-items:center;gap:10px;flex-wrap:wrap;margin-top:10px">',
+          '<input type="text" id="mod-url-input" placeholder="https://.../modul.zip" style="flex:1;min-width:160px">',
+          '<button class="btn sm" id="mod-url-btn">&#8675; URL\'den Kur</button>',
+        '</div>',
+        '<p class="hint">Kurulum sonrası reboot gereklidir.</p>',
         '<div id="mod-zip-status" class="hint hidden"></div>',
       '</div>',
     ].join('');
@@ -1298,6 +1303,30 @@
     document.getElementById('modlist-refresh').addEventListener('click', loadModuleList);
     document.getElementById('mod-reboot-btn').addEventListener('click', modReboot);
     document.getElementById('mod-zip-btn').addEventListener('click', uploadModZip);
+    document.getElementById('mod-url-btn').addEventListener('click', installModUrl);
+  }
+
+  async function installModUrl() {
+    var inp    = document.getElementById('mod-url-input');
+    var btn    = document.getElementById('mod-url-btn');
+    var status = document.getElementById('mod-zip-status');
+    var url = (inp && inp.value || '').trim();
+    if (!url) { toast('Bir zip URL\'si girin', 'err'); return; }
+    if (url.indexOf('https://') !== 0) { toast('Yalnızca https URL', 'err'); return; }
+    if (btn) btn.disabled = true;
+    if (status) { status.classList.remove('hidden'); status.textContent = 'İndiriliyor ve kuruluyor…'; }
+    var r = await api('mod_install_url', url);   // arg passed as a separate argv element server-side
+    if (btn) btn.disabled = false;
+    if (r && r.ok) {
+      if (status) status.textContent = 'Kuruldu — reboot gerekli.';
+      toast('Modül kuruldu. Etkinleştirmek için reboot edin.', 'ok', 7000);
+      if (typeof showRebootBanner === 'function') showRebootBanner();
+      loadModuleList();
+    } else {
+      var e = (r && (r.err || r.error)) || 'kurulum başarısız';
+      if (status) status.textContent = 'Hata: ' + e;
+      toast('Kurulamadı: ' + e, 'err', 6000);
+    }
   }
 
   async function loadModules() {

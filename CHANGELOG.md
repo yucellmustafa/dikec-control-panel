@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.2.2
+- Modül yöneticisi: **URL ile kurulum** — katalogda olmayan herhangi bir modülü https zip URL'si ile kur (zip yükleme zaten vardı). 'not-in-catalog' artık engel değil.
+
+
 ## v0.2.1
 - Panel: System sekmesine **"Install update"** düğmesi (update_apply) — "check for update" güncellemeyi görüyordu ama kuramıyordu; düzeltildi.
 - Modül sürüm gösteriminde çift-v düzeltmesi.
