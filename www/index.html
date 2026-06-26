@@ -2,50 +2,245 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>Dikec Control Panel</title>
   <link rel="stylesheet" href="app.css">
 </head>
 <body>
 
-  <!-- Token overlay — shown when ?token= is absent from URL -->
-  <div id="token-overlay">
-    <div class="token-box">
-      <h2>Dikec Control Panel</h2>
-      <p>Enter the panel token to connect. Find it at<br><code>/data/dikec/conf/panel_token</code></p>
-      <div class="field">
-        <label for="token-input">Token</label>
-        <input type="password" id="token-input" placeholder="panel_token" autocomplete="off">
+  <!-- ── Auth: Login ───────────────────────────────────────────────────────── -->
+  <div id="screen-login" class="screen-auth hidden">
+    <div class="auth-card">
+      <div class="auth-logo">
+        <div class="auth-logo-mark"></div>
+        <span class="auth-logo-text">Dikec</span>
       </div>
-      <button class="btn primary" id="token-submit" style="width:100%">Connect</button>
+      <h1 class="auth-title">Control Panel</h1>
+      <p class="auth-subtitle" id="login-notice">Sign in to continue.</p>
+      <form id="login-form" autocomplete="on">
+        <div class="field">
+          <label for="login-user">Username</label>
+          <input type="text" id="login-user" name="username"
+                 autocomplete="username" placeholder="admin" spellcheck="false">
+        </div>
+        <div class="field">
+          <label for="login-pass">Password</label>
+          <input type="password" id="login-pass" name="password"
+                 autocomplete="current-password" placeholder="••••••••">
+        </div>
+        <div id="login-error" class="form-error hidden"></div>
+        <button type="submit" class="btn primary full" id="login-btn">Sign in</button>
+      </form>
+      <p class="auth-hint">Default: admin / admin (you will be prompted to change it)</p>
     </div>
   </div>
 
-  <!-- Nav -->
-  <nav id="nav">
-    <span id="nav-title">Dikec</span>
-    <button class="tab-btn active" id="tab-dash">Dashboard</button>
-    <button class="tab-btn"        id="tab-xray">Xray</button>
-    <button class="tab-btn"        id="tab-sms">SMS</button>
-    <button class="tab-btn"        id="tab-cellular">Cellular</button>
-    <button class="tab-btn"        id="tab-clients">Clients</button>
-    <button class="tab-btn"        id="tab-integrations">Integrations</button>
-    <button class="tab-btn"        id="tab-system">System</button>
-  </nav>
-
-  <!-- Content — each tab view is populated by app.js -->
-  <div id="content">
-    <div class="view active" id="view-dash"></div>
-    <div class="view"        id="view-xray"></div>
-    <div class="view"        id="view-sms"></div>
-    <div class="view"        id="view-cellular"></div>
-    <div class="view"        id="view-clients"></div>
-    <div class="view"        id="view-integrations"></div>
-    <div class="view"        id="view-system"></div>
+  <!-- ── Auth: Change password ─────────────────────────────────────────────── -->
+  <div id="screen-passwd" class="screen-auth hidden">
+    <div class="auth-card">
+      <div class="auth-logo">
+        <div class="auth-logo-mark"></div>
+        <span class="auth-logo-text">Dikec</span>
+      </div>
+      <h1 class="auth-title">Set New Password</h1>
+      <p class="auth-subtitle" id="passwd-subtitle">Choose a new password to continue.</p>
+      <form id="passwd-form" autocomplete="off">
+        <div id="passwd-old-wrap" class="field hidden">
+          <label for="passwd-old">Current password</label>
+          <input type="password" id="passwd-old" name="old-password"
+                 autocomplete="current-password" placeholder="••••••••">
+        </div>
+        <div class="field">
+          <label for="passwd-new">New password <span class="auth-hint-inline">(min 6 chars)</span></label>
+          <input type="password" id="passwd-new" name="new-password"
+                 autocomplete="new-password" placeholder="••••••••">
+        </div>
+        <div class="field">
+          <label for="passwd-confirm">Confirm new password</label>
+          <input type="password" id="passwd-confirm" name="confirm-password"
+                 autocomplete="new-password" placeholder="••••••••">
+        </div>
+        <div id="passwd-error" class="form-error hidden"></div>
+        <button type="submit" class="btn primary full" id="passwd-btn">Set password &amp; continue</button>
+      </form>
+    </div>
   </div>
 
-  <!-- Toast container -->
-  <div id="toasts"></div>
+  <!-- ── Main app ──────────────────────────────────────────────────────────── -->
+  <div id="screen-app" class="hidden">
+
+    <!-- Mobile: top app bar -->
+    <header id="app-bar">
+      <button id="drawer-toggle" class="icon-btn" aria-label="Open menu">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+          <line x1="3" y1="6"  x2="21" y2="6"/>
+          <line x1="3" y1="12" x2="21" y2="12"/>
+          <line x1="3" y1="18" x2="21" y2="18"/>
+        </svg>
+      </button>
+      <span id="app-bar-title">Dashboard</span>
+      <button id="header-logout" class="icon-btn" aria-label="Logout" title="Logout">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+             stroke-linecap="round" stroke-linejoin="round">
+          <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+          <polyline points="16 17 21 12 16 7"/>
+          <line x1="21" y1="12" x2="9" y2="12"/>
+        </svg>
+      </button>
+    </header>
+
+    <!-- Mobile: sidebar overlay -->
+    <div id="sidebar-overlay" class="hidden" role="presentation"></div>
+
+    <!-- Sidebar (desktop permanent / mobile drawer) -->
+    <nav id="sidebar" aria-label="Main navigation">
+      <div class="sidebar-brand">
+        <div class="brand-mark"></div>
+        <span class="brand-name">Dikec</span>
+      </div>
+
+      <div class="sidebar-nav">
+        <button class="nav-item active" id="tab-dash" data-tab="dash">
+          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+            <rect x="3" y="3" width="7" height="7" rx="1.5"/>
+            <rect x="14" y="3" width="7" height="7" rx="1.5"/>
+            <rect x="3" y="14" width="7" height="7" rx="1.5"/>
+            <rect x="14" y="14" width="7" height="7" rx="1.5"/>
+          </svg>
+          <span>Dashboard</span>
+        </button>
+
+        <button class="nav-item" id="tab-xray" data-tab="xray">
+          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+            <circle cx="12" cy="12" r="3"/>
+            <path d="M12 2v3M12 19v3M4.22 4.22l2.12 2.12M17.66 17.66l2.12 2.12M2 12h3M19 12h3M4.22 19.78l2.12-2.12M17.66 6.34l2.12-2.12"/>
+          </svg>
+          <span>Xray</span>
+        </button>
+
+        <button class="nav-item" id="tab-sms" data-tab="sms">
+          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+          </svg>
+          <span>SMS</span>
+        </button>
+
+        <button class="nav-item" id="tab-cellular" data-tab="cellular">
+          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+            <rect x="2"  y="16" width="4" height="5" rx="0.8"/>
+            <rect x="8"  y="11" width="4" height="10" rx="0.8"/>
+            <rect x="14" y="6"  width="4" height="15" rx="0.8"/>
+            <rect x="20" y="2"  width="2" height="19" rx="0.8"/>
+          </svg>
+          <span>Cellular</span>
+        </button>
+
+        <button class="nav-item" id="tab-clients" data-tab="clients">
+          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+            <circle cx="9" cy="7" r="4"/>
+            <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
+            <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+          </svg>
+          <span>Clients</span>
+        </button>
+
+        <button class="nav-item" id="tab-integrations" data-tab="integrations">
+          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+            <circle cx="18" cy="5"  r="3"/>
+            <circle cx="6"  cy="12" r="3"/>
+            <circle cx="18" cy="19" r="3"/>
+            <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/>
+            <line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/>
+          </svg>
+          <span>Integrations</span>
+        </button>
+
+        <button class="nav-item" id="tab-system" data-tab="system">
+          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+            <circle cx="12" cy="12" r="3"/>
+            <path d="M19.07 4.93a10 10 0 0 1 0 14.14M4.93 4.93a10 10 0 0 0 0 14.14"/>
+          </svg>
+          <span>System</span>
+        </button>
+      </div>
+
+      <div class="sidebar-footer">
+        <div class="sidebar-user-row">
+          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+            <circle cx="12" cy="7" r="4"/>
+          </svg>
+          <span id="sidebar-user" class="sidebar-user-label">—</span>
+        </div>
+        <button id="sidebar-logout" class="nav-item logout-item">
+          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+               stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+            <polyline points="16 17 21 12 16 7"/>
+            <line x1="21" y1="12" x2="9" y2="12"/>
+          </svg>
+          <span>Logout</span>
+        </button>
+      </div>
+    </nav>
+
+    <!-- Main content -->
+    <main id="content">
+      <div class="view active" id="view-dash"></div>
+      <div class="view"        id="view-xray"></div>
+      <div class="view"        id="view-sms"></div>
+      <div class="view"        id="view-cellular"></div>
+      <div class="view"        id="view-clients"></div>
+      <div class="view"        id="view-integrations"></div>
+      <div class="view"        id="view-system"></div>
+    </main>
+
+    <!-- Mobile: bottom tab bar -->
+    <nav id="bottom-nav" aria-label="Tab bar">
+      <button class="bot-tab active" id="btab-dash" data-tab="dash">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+          <rect x="3" y="3" width="7" height="7" rx="1.5"/>
+          <rect x="14" y="3" width="7" height="7" rx="1.5"/>
+          <rect x="3" y="14" width="7" height="7" rx="1.5"/>
+          <rect x="14" y="14" width="7" height="7" rx="1.5"/>
+        </svg>
+        <span>Home</span>
+      </button>
+      <button class="bot-tab" id="btab-xray" data-tab="xray">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+          <circle cx="12" cy="12" r="3"/>
+          <path d="M12 2v3M12 19v3M4.22 4.22l2.12 2.12M17.66 17.66l2.12 2.12M2 12h3M19 12h3M4.22 19.78l2.12-2.12M17.66 6.34l2.12-2.12"/>
+        </svg>
+        <span>Xray</span>
+      </button>
+      <button class="bot-tab" id="btab-sms" data-tab="sms">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+          <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+        </svg>
+        <span>SMS</span>
+      </button>
+      <button class="bot-tab" id="btab-clients" data-tab="clients">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+          <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+          <circle cx="9" cy="7" r="4"/>
+        </svg>
+        <span>Clients</span>
+      </button>
+      <button class="bot-tab" id="btab-more" data-tab="__more">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+          <circle cx="5"  cy="12" r="1.5" fill="currentColor"/>
+          <circle cx="12" cy="12" r="1.5" fill="currentColor"/>
+          <circle cx="19" cy="12" r="1.5" fill="currentColor"/>
+        </svg>
+        <span>More</span>
+      </button>
+    </nav>
+
+  </div><!-- #screen-app -->
+
+  <!-- Toast container (always mounted) -->
+  <div id="toasts" aria-live="polite"></div>
 
   <script src="app.js"></script>
 </body>
