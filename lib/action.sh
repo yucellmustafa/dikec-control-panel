@@ -157,6 +157,8 @@ case "$VERB" in
   prof_import_link) _o=$(prof_import_link "$ARG"); j_rc $? "$_o";;
   prof_import)     _o=$(prof_import_link "$ARG"); j_rc $? "$_o";;
   prof_import_sub) _o=$(prof_import_sub "$ARG"); j_rc $? "$_o";;
+  prof_probe)      _o=$(prof_probe "$ARG"); j_rc $? "$_o";;
+  prof_probe_all)  j_ok "$(prof_probe_all)";;
 
   # ── xray engine ───────────────────────────────────────────────────────────
   xray_start)      xray_start && j_ok '{}' || j_err "xray_start başarısız";;
@@ -180,6 +182,8 @@ case "$VERB" in
   # ── per-client bypass ─────────────────────────────────────────────────────
   bypass_add)      bypass_add "$ARG" && j_ok "{}" || j_err "bypass_add $ARG başarısız";;
   bypass_del)      bypass_del "$ARG" && j_ok "{}" || j_err "bypass_del $ARG başarısız";;
+  bypass_list)     j_ok "$(bypass_list)";;
+  clients)         j_ok "$(sys_clients_json)";;
 
   # ── tproxy dry-run ────────────────────────────────────────────────────────
   tproxy_dryrun)   _o=$(DRYRUN=1 route_apply tproxy 2>&1); "$JQ" -nc --arg rules "$_o" '{ok:true,dryrun:$rules}';;

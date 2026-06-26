@@ -44,6 +44,7 @@ Type /help for commands."
 /import <link> — import a vmess/vless/trojan link or subscription URL
 /profiles — list saved profiles
 /profile <name> — switch profile
+/probe [switch] — test profile latency, switch to fastest
 /adblock status|on|off|update — ad blocking (DNS sinkhole)
 /sms_cmd status|on|off|secret <s>|allow <list>|reply <true|false> — SMS remote control
 

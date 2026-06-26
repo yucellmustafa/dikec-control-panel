@@ -310,6 +310,16 @@ bypass_del() {
     dcp_log "bypass_del: $bip"
 }
 
+# bypass_list — echo the persisted bypass IPs as a JSON array {bypass:[...]}.
+bypass_list() {
+    local arr="[]"
+    if [ -f "$BYPASS_LIST" ]; then
+        arr=$(grep -vE '^[[:space:]]*(#|$)' "$BYPASS_LIST" 2>/dev/null \
+            | "$JQ" -Rnc '[inputs | select(length>0)]')
+    fi
+    "$JQ" -nc --argjson b "${arr:-[]}" '{bypass:$b}'
+}
+
 # ── tproxy helpers (ported from zte tproxy.sh) ───────────────────────────────
 
 _private_cidrs() {

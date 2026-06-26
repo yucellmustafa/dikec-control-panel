@@ -440,3 +440,60 @@ prof_switch() {
 prof_active() {
     cat "$ACTIVE_FILE" 2>/dev/null || printf ''
 }
+
+# ── prof_probe ────────────────────────────────────────────────────────────────
+# Measure a profile's real latency by spawning a SHORT-LIVED temporary xray that
+# binds a probe SOCKS port (NOT 10808 — the live tunnel keeps that), then curl
+# through it to a 204 endpoint and time it. Echoes {name,latency_ms,ok}.
+# latency_ms is null + ok:false if the tunnel can't carry traffic.
+PROBE_PORT=10899
+prof_probe() {
+    local name="${1:-}"
+    _prof_valid_name "$name" || { "$JQ" -nc --arg e "invalid-name" '{err:$e}'; return 1; }
+    local pfile="$PROF_DIR/config-${name}.json"
+    [ -f "$pfile" ] || { "$JQ" -nc --arg e "profile-not-found" '{err:$e}'; return 1; }
+
+    local tmp="$PROF_DIR/.probe.$$.json"
+    # rewrite the socks inbound to the probe port so we don't clash with 10808
+    "$JQ" --argjson p "$PROBE_PORT" \
+        '(.inbounds |= map(if .protocol=="socks" then .port=$p | .listen="127.0.0.1" else . end))' \
+        "$pfile" > "$tmp" 2>/dev/null || { rm -f "$tmp"; "$JQ" -nc --arg n "$name" '{name:$n,latency_ms:null,ok:false}'; return 0; }
+
+    XRAY_LOCATION_ASSET="$XRAY_LOCATION_ASSET" "$XRAY_BIN" run -config "$tmp" >/dev/null 2>&1 &
+    local xpid=$!
+    # give xray a moment to dial the upstream
+    sleep 2
+    local secs
+    secs=$("$CURL" -s -o /dev/null --max-time 8 \
+        --socks5-hostname "127.0.0.1:$PROBE_PORT" \
+        -w '%{time_total}' "https://www.gstatic.com/generate_204" 2>/dev/null)
+    kill "$xpid" 2>/dev/null; wait "$xpid" 2>/dev/null
+    rm -f "$tmp"
+
+    case "$secs" in
+        ''|0|0.000000)
+            "$JQ" -nc --arg n "$name" '{name:$n,latency_ms:null,ok:false}' ;;
+        *)
+            local ms
+            ms=$(awk -v t="$secs" 'BEGIN{printf "%d", t*1000}')
+            "$JQ" -nc --arg n "$name" --argjson ms "${ms:-0}" '{name:$n,latency_ms:$ms,ok:true}' ;;
+    esac
+}
+
+# prof_probe_all — probe every profile sequentially; echo a list SORTED by
+# latency (reachable first, ascending). Used by "switch to fastest".
+prof_probe_all() {
+    local results="[]" f pname r
+    if [ -d "$PROF_DIR" ]; then
+        for f in "$PROF_DIR"/config-*.json; do
+            [ -f "$f" ] || continue
+            pname="${f##*/}"; pname="${pname#config-}"; pname="${pname%.json}"
+            r=$(prof_probe "$pname")
+            results=$("$JQ" -nc --argjson a "$results" --argjson r "$r" '$a + [$r]')
+        done
+    fi
+    # sort: reachable (ok) by ascending latency, unreachable last
+    "$JQ" -nc --argjson r "$results" \
+        '{results: ($r | sort_by(if .ok then .latency_ms else 9999999 end)),
+          fastest: ([$r[] | select(.ok)] | sort_by(.latency_ms) | (.[0].name // null))}'
+}

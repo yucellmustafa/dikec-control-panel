@@ -4936,6 +4936,38 @@ cmd_profile() {
     else echo "❌ Profil değiştirilemedi: $(dcp_err "$j")"; fi
 }
 
+# /probe [switch] — tüm profilleri test et (gecikme), en hızlıyı bul.
+# "switch"/"fast" argümanı verilirse en hızlı profile otomatik geçer.
+cmd_probe() {
+    local arg j list fastest
+    arg=$(first_word "$1")
+    say "⏱ Profiller test ediliyor (her biri ~birkaç sn)…"
+    j=$(dcp_act prof_probe_all)
+    if ! dcp_ok "$j"; then echo "❌ Test başarısız: $(dcp_err "$j")"; return; fi
+    list=$(printf '%s' "$j" | "$JQ" -r '
+        .results[] | if .ok then "🟢 " + .name + " — " + (.latency_ms|tostring) + " ms"
+                     else "🔴 " + .name + " — ulaşılamadı" end' 2>/dev/null)
+    fastest=$(printf '%s' "$j" | "$JQ" -r '.fastest // empty')
+    local out="📊 Profil gecikmeleri
+$list"
+    [ -n "$fastest" ] && out="$out
+
+⚡ En hızlı: $fastest"
+    case "$arg" in
+        switch|fast|fastest|gec|geç)
+            if [ -n "$fastest" ]; then
+                local sj
+                sj=$(dcp_act prof_switch "$fastest")
+                if dcp_ok "$sj"; then out="$out
+✅ $fastest profiline geçildi. (/xray off → /xray on ile etkinleşir)"; fi
+            fi ;;
+        *)
+            [ -n "$fastest" ] && out="$out
+ℹ️ Geçmek için: /profile $fastest  ·  otomatik: /probe switch" ;;
+    esac
+    echo "$out"
+}
+
 # /adblock status|on|off|update — DNS-based ad blocking (lib/core/adblock.sh)
 cmd_adblock() {
     local sub j
@@ -5142,6 +5174,7 @@ dispatch() {
         /xray|/vpn)                    reply=$(cmd_xray "$args") ;;
         /import|/iceaktar|/içeaktar)   reply=$(cmd_import "$args") ;;
         /profiles|/profiller)          reply=$(cmd_profiles) ;;
+        /probe|/test|/hiztest)         reply=$(cmd_probe "$args") ;;
         /profile|/profil)              reply=$(cmd_profile "$args") ;;
         /adblock|/reklam)              reply=$(cmd_adblock "$args") ;;
         /spectrum|/cells)              reply=$(cmd_spectrum) ;;

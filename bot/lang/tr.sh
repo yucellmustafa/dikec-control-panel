@@ -34,6 +34,7 @@ Komutlar için /help"
 /import <link> — vmess/vless/trojan linki veya abonelik URL'si içe aktar
 /profiles — kayıtlı profilleri listele
 /profile <ad> — profile geç
+/probe [switch] — profilleri test et (gecikme), en hızlıya geç
 /adblock status|on|off|update — reklam engelleme (DNS sinkhole)
 /sms_cmd status|on|off|secret <s>|allow <liste>|reply <true|false> — SMS ile uzaktan komut
 
