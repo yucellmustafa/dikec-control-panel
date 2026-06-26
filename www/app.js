@@ -1634,11 +1634,12 @@
             '<div class="toggle-track"></div>',
             '<div class="toggle-thumb"></div>',
           '</label>',
-          '<span class="toggle-label">Expose on LAN (0.0.0.0:8088)</span>',
+          '<span class="toggle-label">LAN erişimi (0.0.0.0:8088)</span>',
         '</div>',
         '<p class="hint">',
-          'Default: localhost only (127.0.0.1:8088). LAN mode adds HTTP Basic Auth as a',
-          ' second layer. Takes effect on next httpd restart.',
+          'Varsayılan AÇIK: hotspot\'a bağlı cihazlardan http://&lt;gateway-ip&gt;:8088 ile ',
+          'adb forward gerekmeden erişilir; login korur. KAPAT → yalnızca localhost ',
+          '(127.0.0.1:8088, adb forward gerekir). Değişiklik httpd yeniden başlayınca etkin olur.',
         '</p>',
         '<div class="row" style="margin-top:12px">',
           '<button class="btn primary sm" id="lan-save">Apply</button>',
@@ -1715,7 +1716,7 @@
   async function setPanelLan(val) {
     var r = await api('panel_lan', val);
     if (r && r.ok) {
-      toast('LAN expose → ' + (val === '1' ? 'on' : 'off') + '. Restart httpd to apply.', 'ok', 5000);
+      toast('LAN erişimi → ' + (val === '1' ? 'AÇIK' : 'KAPALI (yalnızca localhost)') + '. httpd yeniden başlıyor…', 'ok', 6000);
     } else {
       toast((r && r.err) || 'Failed', 'err');
       var lanEl = document.getElementById('lan-expose');

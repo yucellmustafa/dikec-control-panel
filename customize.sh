@@ -38,7 +38,11 @@ fi
 # --- panel token (yoksa üret) ---
 [ -f "$DATA/conf/panel_token" ] || tr -dc 'a-f0-9' </dev/urandom 2>/dev/null | head -c 32 > "$DATA/conf/panel_token"
 [ -s "$DATA/conf/route_mode" ] || echo tun0 > "$DATA/conf/route_mode"
-[ -s "$DATA/conf/lan_expose" ] || echo 0 > "$DATA/conf/lan_expose"
+# LAN'a açık varsayılan: sıfır kurulumda hotspot'a bağlı cihazlardan panele
+# adb forward gerekmeden erişilir (http://<gateway-ip>:8088). Login (admin/admin
+# → ilk girişte zorunlu değiştir) korur. Kapatmak için: panel System → LAN, ya
+# da action.sh panel_lan 0.
+[ -s "$DATA/conf/lan_expose" ] || echo 1 > "$DATA/conf/lan_expose"
 
 # --- izinler ---
 set_perm_recursive "$MODPATH" 0 0 0755 0644

@@ -224,7 +224,16 @@ case "$VERB" in
       esac
       mkdir -p "${DCP_DATA}/conf"
       printf '%s' "$ARG" > "${DCP_DATA}/conf/lan_expose"
-      j_ok "$("$JQ" -nc --arg v "$ARG" '{lan_expose:($v|tonumber)}')"
+      j_ok "$("$JQ" -nc --arg v "$ARG" '{lan_expose:($v|tonumber), restarting:true}')"
+      # Auto-restart httpd so the new bind takes effect immediately. Delay so the
+      # HTTP response flushes first; the supervisor respawns httpd with the new
+      # lan_expose. (Closing LAN from a LAN client will drop you — expected.)
+      ( sleep 1
+        for _p in $(ls /proc 2>/dev/null | grep -E '^[0-9]+$'); do
+          _cl=$(tr '\0' ' ' < "/proc/$_p/cmdline" 2>/dev/null)
+          case "$_cl" in *httpd*8088*) kill "$_p" 2>/dev/null ;; esac
+        done
+      ) >/dev/null 2>&1 &
     fi
     ;;
 

@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.2.3
+- **LAN erişimi artık varsayılan AÇIK** — sıfır kurulumda hotspot'a bağlı cihazlardan http://<gateway-ip>:8088 ile adb forward gerekmeden erişilir (login korur). System sekmesinden kapatılabilir (yalnızca localhost). panel_lan değişince httpd otomatik yeniden başlar.
+
+
 ## v0.2.2
 - Modül yöneticisi: **URL ile kurulum** — katalogda olmayan herhangi bir modülü https zip URL'si ile kur (zip yükleme zaten vardı). 'not-in-catalog' artık engel değil.
 
