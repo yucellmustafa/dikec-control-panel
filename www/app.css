@@ -739,7 +739,6 @@ input[type="checkbox"] { accent-color: var(--accent); width: 15px; height: 15px;
   transition: border-color var(--tr);
 }
 .intg-card.installed { border-color: var(--border); }
-.intg-card.uninstalled { opacity: 0.5; }
 
 .intg-header {
   display: flex;

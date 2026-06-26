@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.2.6
+- **Integrations sekmesi sadeleştirildi** — Tailscale / SSH / Tor modülü kurulu değilse kartı hiç gösterilmiyor (`installed:false` → kart gizli). Adblock yerel olduğu için her zaman görünür.
+
+
 ## v0.2.5
 - **Device info'da modül sürümü düzeltildi** — sabit `v0.1.0` yerine artık canlı `module.prop`'tan okunuyor (`status` → `module_version`).
 

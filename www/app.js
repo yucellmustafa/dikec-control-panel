@@ -1171,15 +1171,16 @@
       return;
     }
 
+    var card = document.getElementById('intg-' + name);
+
     if (!r.installed) {
-      if (pill) { pill.textContent = 'Not installed'; pill.className = 'pill'; }
-      if (body) body.classList.add('hidden');
-      var card = document.getElementById('intg-' + name);
-      if (card) card.classList.add('uninstalled');
+      // module not installed → hide the whole card (don't clutter Integrations)
+      if (card) card.classList.add('hidden');
       return;
     }
 
-    // Integration is installed — show body
+    // Integration is installed — reveal card + show body
+    if (card) card.classList.remove('hidden');
     if (body) body.classList.remove('hidden');
 
     if (pill) {
