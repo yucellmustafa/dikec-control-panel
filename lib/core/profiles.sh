@@ -11,8 +11,9 @@ PROF_DIR="$DCP_DATA/xray/profiles"
 ACTIVE_FILE="$DCP_DATA/xray/active"
 XRAY_BIN="$DCP_MOD/system/bin/xray"
 TPL="$DCP_MOD/xray/config.tpl.json"
-# xray geo-asset lookup path (dcp-engine module provides the dat files)
-XRAY_LOCATION_ASSET="${XRAY_LOCATION_ASSET:-/data/adb/modules/dcp-engine/xray/assets}"
+# xray geo-asset lookup path — our own module ships geoip.dat/geosite.dat
+# (the old dcp-engine module was removed at cutover; never point here).
+XRAY_LOCATION_ASSET="${XRAY_LOCATION_ASSET:-$DCP_MOD/xray/assets}"
 export XRAY_LOCATION_ASSET
 
 # ── helpers ──────────────────────────────────────────────────────────────────
@@ -46,8 +47,31 @@ _qget() {
     if [ -n "$v" ]; then _urldecode "$v"; else printf '%s' "${2:-}"; fi
 }
 
+# _compute_cert_pin SERVER PORT SNI — echo the server leaf-cert SHA256 (hex).
+# xray 26.3.27 removed `allowInsecure`; the migration target is
+# `pinnedPeerCertSha256` (a hex string). For TLS-fronting links (sni spoofed,
+# allowInsecure=1) we replicate "trust this exact server" by pinning the cert
+# the server actually presents under that SNI. openssl isn't on the device, so:
+# curl -w %{certs} dumps the chain PEM → busybox base64 -d the leaf → sha256sum.
+# Echoes empty on any failure (caller then omits the pin).
+_compute_cert_pin() {
+    local _srv="$1" _port="${2:-443}" _sni="${3:-$1}" _pem _hex
+    [ -x "$CURL" ] && [ -x "$BB" ] || return 0
+    # NOTE: do NOT bail on curl's exit code. A VLESS/VMess server doesn't speak
+    # HTTP, so curl completes the TLS handshake (cert dumped via %{certs}) but
+    # then the HTTP request fails (empty reply → non-zero exit). We still have
+    # the cert. Capture output regardless; the awk/decode below decides success.
+    _pem=$("$CURL" -ksS --max-time 12 -o /dev/null -w '%{certs}' \
+        --connect-to "${_sni}:${_port}:${_srv}:${_port}" \
+        "https://${_sni}:${_port}" 2>/dev/null)
+    _hex=$(printf '%s\n' "$_pem" \
+        | awk '/-----BEGIN CERTIFICATE-----/{f=1;next} /-----END CERTIFICATE-----/{exit} f' \
+        | "$BB" base64 -d 2>/dev/null | sha256sum 2>/dev/null | awk '{print $1}')
+    case "$_hex" in [0-9a-fA-F]*) printf '%s' "$_hex";; esac
+}
+
 # build_stream: reads _NET _SEC _SNI _FPRINT _ALPN _HOSTH _PATHH _SVC _HDR
-#               _PBK _SID _SPX _MODE _SERVER; echoes streamSettings JSON object
+#               _PBK _SID _SPX _MODE _SERVER _PORT _INSECURE; echoes streamSettings JSON
 _build_stream() {
     local s alpn alpnj sni
 
@@ -60,6 +84,14 @@ _build_stream() {
             s="$s,\"security\":\"tls\",\"tlsSettings\":{"
             s="$s\"serverName\":$("$JQ" -rn --arg v "$sni" '$v | @json'),"
             s="$s\"fingerprint\":\"${_FPRINT:-chrome}\""
+            # allowInsecure=1 → pin the cert the server presents under this SNI
+            # (xray removed allowInsecure; pinnedPeerCertSha256 is the hex replacement)
+            case "$_INSECURE" in
+                1|true|TRUE|True)
+                    _pin=$(_compute_cert_pin "$_SERVER" "${_PORT:-443}" "$sni")
+                    [ -n "$_pin" ] && s="$s,\"pinnedPeerCertSha256\":$("$JQ" -rn --arg v "$_pin" '$v | @json')"
+                    ;;
+            esac
             if [ -n "$_ALPN" ]; then
                 alpnj=$(printf '%s' "$_ALPN" | awk -F, '{
                     o=""
@@ -140,6 +172,8 @@ _parse_common_query() {
     _SNI=$(_qget sni "$(_qget servername "$(_qget peer "")")")
     _FPRINT=$(_qget fp "$(_qget fingerprint chrome)")
     _ALPN=$(_qget alpn "")
+    # allowInsecure=1 → xray 26.3.27'de cert-pin'e çevrilir (bkz _compute_cert_pin)
+    _INSECURE=$(_qget allowInsecure "$(_qget insecure "")")
     _HOSTH=$(_qget host "$(_qget authority "")")
     _PATHH=$(_qget path "")
     _SVC=$(_qget serviceName "$(_qget service "")"); [ -n "$_SVC" ] || _SVC="$_PATHH"
@@ -179,7 +213,7 @@ prof_import_link() {
 
     # shared stream-settings state (subshell-safe globals via local-by-convention)
     local _NET _SEC _SNI _FPRINT _ALPN _HOSTH _PATHH _SVC _HDR
-    local _PBK _SID _SPX _MODE _SEED _SERVER _PORT _NAME _PROTO
+    local _PBK _SID _SPX _MODE _SEED _SERVER _PORT _NAME _PROTO _INSECURE _pin
     local QS OUTBOUND
     _NET=tcp; _SEC=none; _SNI=""; _FPRINT=chrome; _ALPN=""
     _HOSTH=""; _PATHH=""; _SVC=""; _HDR=none; _PBK=""; _SID=""

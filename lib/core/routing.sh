@@ -153,10 +153,25 @@ route_apply() {
             fi
 
             # 5) Default route via tun0 in our reserved table (required for
-            #    vpn-gateway's RFC1918 ip rules to have somewhere to route to)
-            $IP route del default dev "$TUN_NAME" table "$TUN_TABLE" 2>/dev/null || true
-            $IP route add default dev "$TUN_NAME" table "$TUN_TABLE"
-            dcp_log "route_apply: default via tun0 in table $TUN_TABLE"
+            #    vpn-gateway's RFC1918 ip rules to have somewhere to route to).
+            #    RACE: Android netd rebuilds routing tables a moment after tun0
+            #    appears (interface-up event) and WIPES this route, so a single
+            #    add silently vanishes and LAN clients fall through to the WAN
+            #    table (exit direct, not via VPN). Add then re-assert for a short
+            #    window to win the race. `ip route replace` is idempotent.
+            $IP route replace default dev "$TUN_NAME" table "$TUN_TABLE" 2>/dev/null
+            # short-lived re-assert (≈16s, NOT a persistent daemon): re-add if
+            # netd flushed it. Covers the post-up churn window.
+            (
+                _n=0
+                while [ "$_n" -lt 8 ]; do
+                    sleep 2
+                    $IP route show table "$TUN_TABLE" 2>/dev/null | grep -q "default dev $TUN_NAME" \
+                        || $IP route replace default dev "$TUN_NAME" table "$TUN_TABLE" 2>/dev/null
+                    _n=$((_n + 1))
+                done
+            ) >/dev/null 2>&1 &
+            dcp_log "route_apply: default via tun0 in table $TUN_TABLE (+re-assert vs netd)"
 
             # 6) If vpn-gateway is absent: install our own RFC1918 rules + FORWARD
             if _vpn_gateway_installed; then
