@@ -1,7 +1,7 @@
 {
-  "version": "v0.2.1",
-  "versionCode": 3,
-  "zipUrl": "https://github.com/dikeckaan/dikec-control-panel/releases/download/v0.2.1/dikec-control-panel-v0.2.1.zip",
+  "version": "v0.2.2",
+  "versionCode": 4,
+  "zipUrl": "https://github.com/dikeckaan/dikec-control-panel/releases/download/v0.2.2/dikec-control-panel-v0.2.2.zip",
   "changelog": "https://raw.githubusercontent.com/dikeckaan/dikec-control-panel/main/CHANGELOG.md",
-  "sha256": "51c2f4740d5476f9f855b4053936373e2b5e4c056e93de304e0bc4bee16a5a2d"
+  "sha256": "b470171e0f2c39f2854ad3e664156de288bc29c2aa35f39027a10e0a4ee3260b"
 }
