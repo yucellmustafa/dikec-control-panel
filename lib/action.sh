@@ -26,6 +26,7 @@ D="${0%/lib/action.sh}"; [ -d "$D/lib" ] || D=/data/adb/modules/dikec-control-pa
 . "$D/lib/core/notify.sh"
 . "$D/lib/core/integrations.sh"
 . "$D/lib/core/panelauth.sh"
+. "$D/lib/core/modules.sh"
 . "$D/lib/core/update.sh"
 
 VERB="${1:-}"; ARG="${2:-}"; ARG2="${3:-}"
@@ -245,6 +246,16 @@ case "$VERB" in
     j_ok "$("$JQ" -nc --arg u "$(pa_user)" --argjson mc "$(pa_must_change)" \
       '{user:$u, must_change:($mc==1)}')"
     ;;
+
+  # ── Magisk module manager ──────────────────────────────────────────────────
+  mod_list)            j_ok "$(mod_list_json)";;
+  mod_catalog)         j_ok "$(mod_catalog_json)";;
+  mod_enable)          _o=$(mod_enable "$ARG"); j_rc $? "$_o";;
+  mod_disable)         _o=$(mod_disable "$ARG"); j_rc $? "$_o";;
+  mod_remove)          _o=$(mod_remove "$ARG"); j_rc $? "$_o";;
+  mod_unremove)        _o=$(mod_unremove "$ARG"); j_rc $? "$_o";;
+  mod_install_catalog) _o=$(mod_install_catalog "$ARG"); j_rc $? "$_o";;
+  mod_install_zip)     _o=$(mod_install_zip "$ARG"); j_rc $? "$_o";;
 
   # ── system reboot ─────────────────────────────────────────────────────────
   sys_reboot)
