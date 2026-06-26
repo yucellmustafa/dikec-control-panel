@@ -1700,7 +1700,7 @@
       [
         ['Model',    r.model],
         ['Uptime',   h + 'h ' + m + 'm'],
-        ['Module',   'v0.1.0'],
+        ['Module',   r.module_version ? ('v' + String(r.module_version).replace(/^v/i, '')) : '—'],
         ['Temp',     r.temp_c != null ? r.temp_c + ' °C' : null],
         ['Load',     r.load1]
       ].forEach(function (p) { el.appendChild(kv(p[0], p[1])); });

@@ -43,6 +43,8 @@ sys_status_json(){
     up=$(awk '{print int($1)}' /proc/uptime)
 
     mkdir -p "$DCP_DATA/conf"
+    # module version straight from the live module.prop (was hardcoded in the UI)
+    modver=$(sed -n 's/^version=//p' "${DCP_MOD:-/data/adb/modules/dikec-control-panel}/module.prop" 2>/dev/null | head -1)
     out=$("$JQ" -nc \
         --arg    model "$(getprop ro.product.model)" \
         --argjson up   "$up"         \
@@ -50,8 +52,9 @@ sys_status_json(){
         --argjson mt   "${mt:-0}"    \
         --argjson cpu  "$cpu"        \
         --argjson temp "$(_temp_c)"  \
+        --arg    modver "$modver"    \
         --arg    load1 "$(awk '{print $1}' /proc/loadavg)" \
-        '{model:$model,uptime_s:$up,mem_used_mb:$mu,mem_total_mb:$mt,cpu_pct:$cpu,temp_c:$temp,load1:$load1}')
+        '{model:$model,uptime_s:$up,mem_used_mb:$mu,mem_total_mb:$mt,cpu_pct:$cpu,temp_c:$temp,module_version:$modver,load1:$load1}')
     echo "$out" | tee "$cache"
 }
 

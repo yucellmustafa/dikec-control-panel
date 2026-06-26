@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.2.5
+- **Device info'da modül sürümü düzeltildi** — sabit `v0.1.0` yerine artık canlı `module.prop`'tan okunuyor (`status` → `module_version`).
+
+
 ## v0.2.4
 - **Katalogdan modül kurulumu düzeltildi** — katalog `update_json` (snake_case) alanını kullanıyor, kod `updateJson` arıyordu → kurulum başarısız oluyordu. Artık 18 katalog modülü de kurulabiliyor.
 
