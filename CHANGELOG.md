@@ -1,5 +1,10 @@
 # Changelog
 
+## v0.2.1
+- Panel: System sekmesine **"Install update"** düğmesi (update_apply) — "check for update" güncellemeyi görüyordu ama kuramıyordu; düzeltildi.
+- Modül sürüm gösteriminde çift-v düzeltmesi.
+
+
 ## v0.2.0
 - **Web panel v2:** kullanıcı/şifre **login** (ilk girişte zorunlu sıfırlama, ADB'den şifre yönetimi), profesyonel **mobil uyumlu** yeniden tasarım.
 - **Magisk modül yöneticisi:** kurulu modülleri aç/kapa/kaldır, dikeckaan kataloğundan kur, **zip ile yükleme** (panel + bot).

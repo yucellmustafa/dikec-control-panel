@@ -1593,6 +1593,7 @@
         '<div id="sys-kvs"></div>',
         '<div class="row" style="margin-top:12px">',
           '<button class="btn ghost sm" id="update-check-btn">&#9654; Check for updates</button>',
+          '<button class="btn primary sm" id="update-apply-btn" style="display:none">&#8675; Install update</button>',
           '<span id="update-check-msg" class="muted" style="font-size:12px"></span>',
         '</div>',
       '</div>',
@@ -1654,6 +1655,7 @@
     document.getElementById('sys-logout-btn').addEventListener('click', doLogout);
     document.getElementById('sys-pass-btn').addEventListener('click', doChangePassword);
     document.getElementById('update-check-btn').addEventListener('click', doUpdateCheck);
+    document.getElementById('update-apply-btn').addEventListener('click', doUpdateApply);
   }
 
   async function loadSystem() {
@@ -1698,19 +1700,47 @@
     if (btn) btn.disabled = true;
     if (msg) msg.textContent = 'Checking…';
 
+    var applyBtn = document.getElementById('update-apply-btn');
     var r = await api('update_check');
     if (btn) btn.disabled = false;
     if (msg) {
       if (r && r.ok) {
         // r.latest, r.current, r.update_available — all via textContent — XSS-safe
         if (r.update_available) {
-          msg.textContent = 'Update available: ' + (r.latest || '?');
+          msg.textContent = 'Güncelleme var: ' + (r.latest || '?') + ' (mevcut: ' + (r.current || '?') + ')';
+          if (applyBtn) applyBtn.style.display = '';
         } else {
-          msg.textContent = 'Up to date (' + (r.current || r.version || '?') + ')';
+          msg.textContent = 'Güncel (' + (r.current || r.version || '?') + ')';
+          if (applyBtn) applyBtn.style.display = 'none';
         }
       } else {
-        msg.textContent = (r && r.err) || 'Check failed';
+        msg.textContent = (r && r.err) || 'Kontrol başarısız';
+        if (applyBtn) applyBtn.style.display = 'none';
       }
+    }
+  }
+
+  async function doUpdateApply() {
+    var applyBtn = document.getElementById('update-apply-btn');
+    var msg = document.getElementById('update-check-msg');
+    if (!confirm('Güncelleme indirilip kurulsun mu? Kurulum reboot sonrası etkin olur.')) return;
+    if (applyBtn) applyBtn.disabled = true;
+    if (msg) msg.textContent = 'İndiriliyor ve kuruluyor… (birkaç dakika sürebilir)';
+    // update_apply runs in the background server-side and returns {ok,started}
+    var r = await api('update_apply');
+    if (r && r.ok) {
+      if (msg) msg.textContent = 'Kuruluyor… bittiğinde reboot gerekecek.';
+      toast('Güncelleme başlatıldı. Birkaç dakika içinde kurulur; sonra reboot edin.', 'ok', 8000);
+      // surface a reboot prompt shortly after (install completes in the background)
+      setTimeout(function () {
+        if (msg) msg.textContent = 'Kurulum tamamlandıysa reboot ile etkinleştir.';
+        if (applyBtn) { applyBtn.textContent = '↻ Reboot'; applyBtn.disabled = false;
+          applyBtn.onclick = reboot; }
+      }, 20000);
+    } else {
+      if (applyBtn) applyBtn.disabled = false;
+      if (msg) msg.textContent = (r && r.err) || 'Güncelleme başarısız';
+      toast((r && r.err) || 'Güncelleme başlatılamadı', 'err');
     }
   }
 
