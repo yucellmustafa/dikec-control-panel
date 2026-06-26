@@ -63,7 +63,13 @@ sys_throughput_json(){
 }
 
 sys_clients_json(){
-    # Count completed ARP entries (excludes the zero-MAC broadcast placeholder)
-    count=$(awk 'NR>1 && $4!="00:00:00:00:00:00"{c++}END{print c+0}' /proc/net/arp 2>/dev/null)
-    "$JQ" -nc --argjson n "${count:-0}" '{client_count:$n}'
+    # Hotspot (br0) clients from the ARP table: ip + mac. Excludes the zero-MAC
+    # broadcast placeholder. Hostname is best-effort (no readable lease file on
+    # this firmware), left empty → the panel falls back to showing the IP.
+    # Returns both the full array (per-client bypass UI) and the count.
+    local arr
+    arr=$(awk 'NR>1 && $4!="00:00:00:00:00:00" && $6=="br0"{print $1" "$4}' /proc/net/arp 2>/dev/null \
+        | "$JQ" -Rnc '[inputs | split(" ") | select(.[0]!=null and .[0]!="") | {ip:.[0], mac:.[1], hostname:"", iface:"br0"}]')
+    [ -n "$arr" ] || arr='[]'
+    "$JQ" -nc --argjson c "${arr:-[]}" '{clients:$c, client_count:($c|length)}'
 }
