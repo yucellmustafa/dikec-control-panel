@@ -188,6 +188,31 @@ case "$VERB" in
   ssh)
     j_ok "$(intg_ssh "${ARG:-status}")";;
 
+  # ── panel LAN exposure toggle ─────────────────────────────────────────────
+  # panel_lan        → read current lan_expose (0|1)
+  # panel_lan <0|1>  → set lan_expose; httpd re-binds on next restart
+  panel_lan)
+    if [ -z "$ARG" ]; then
+      _pv=$(cat "${DCP_DATA}/conf/lan_expose" 2>/dev/null | tr -d '[:space:]' || printf '0')
+      j_ok "$("$JQ" -nc --arg v "${_pv:-0}" '{lan_expose:($v|tonumber)}')"
+    else
+      case "$ARG" in
+        0|1) ;;
+        *) j_err "panel_lan: arg must be 0 or 1"; exit 1;;
+      esac
+      mkdir -p "${DCP_DATA}/conf"
+      printf '%s' "$ARG" > "${DCP_DATA}/conf/lan_expose"
+      j_ok "$("$JQ" -nc --arg v "$ARG" '{lan_expose:($v|tonumber)}')"
+    fi
+    ;;
+
+  # ── system reboot ─────────────────────────────────────────────────────────
+  sys_reboot)
+    j_ok '{}'
+    # 2 s delay so the HTTP response is transmitted before the device reboots
+    (sleep 2 && /system/bin/reboot) &
+    ;;
+
   # ── notify_test — send a real Telegram message (do NOT invoke in CI) ──────
   notify_test)
     tg_notify "dikec-control-panel notify_test @ $(date '+%Y-%m-%dT%H:%M:%S' 2>/dev/null)" \

@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Dikec Control Panel</title>
+  <link rel="stylesheet" href="app.css">
+</head>
+<body>
+
+  <!-- Token overlay — shown when ?token= is absent from URL -->
+  <div id="token-overlay">
+    <div class="token-box">
+      <h2>Dikec Control Panel</h2>
+      <p>Enter the panel token to connect. Find it at<br><code>/data/dikec/conf/panel_token</code></p>
+      <div class="field">
+        <label for="token-input">Token</label>
+        <input type="password" id="token-input" placeholder="panel_token" autocomplete="off">
+      </div>
+      <button class="btn primary" id="token-submit" style="width:100%">Connect</button>
+    </div>
+  </div>
+
+  <!-- Nav -->
+  <nav id="nav">
+    <span id="nav-title">Dikec</span>
+    <button class="tab-btn active" id="tab-dash">Dashboard</button>
+    <button class="tab-btn"        id="tab-xray">Xray</button>
+    <button class="tab-btn"        id="tab-sms">SMS</button>
+    <button class="tab-btn"        id="tab-cellular">Cellular</button>
+    <button class="tab-btn"        id="tab-integrations">Integrations</button>
+    <button class="tab-btn"        id="tab-system">System</button>
+  </nav>
+
+  <!-- Content — each tab view is populated by app.js -->
+  <div id="content">
+    <div class="view active" id="view-dash"></div>
+    <div class="view"        id="view-xray"></div>
+    <div class="view"        id="view-sms"></div>
+    <div class="view"        id="view-cellular"></div>
+    <div class="view"        id="view-integrations"></div>
+    <div class="view"        id="view-system"></div>
+  </div>
+
+  <!-- Toast container -->
+  <div id="toasts"></div>
+
+  <script src="app.js"></script>
+</body>
+</html>
