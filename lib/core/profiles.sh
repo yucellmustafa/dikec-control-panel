@@ -2,7 +2,9 @@
 # profiles.sh — vmess/vless/trojan share-link + subscription import
 # Ported from /tmp/zte-g5-cpe-xray/rootfs/usr/bin/xray-import; F50 adaptation:
 #   injects OUTBOUND into socks-in template (xray/config.tpl.json) instead of building tproxy config.
-set -u
+# NB: no `set -u` here — this file is sourced into the same shell as action.sh,
+# the Telegram bot and the panel CGI (via env.sh); a global set -u would break
+# the legacy statusbot. This file is written defensively with ${var:-} guards.
 . "${DCP_MOD:-/data/adb/modules/dikec-control-panel}/lib/core/env.sh"
 
 PROF_DIR="$DCP_DATA/xray/profiles"
