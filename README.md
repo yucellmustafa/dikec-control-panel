@@ -33,7 +33,7 @@ APK/V2rayTun yerine doğrudan **xray binary'leri** ile çalışır. Web paneli, 
 
 ## 📦 Kurulum
 
-**Gereksinimler:** ZTE F50 / MU300 (Android 13, arm64), **Magisk**, ve [`bin-utils`](https://github.com/dikeckaan) modülü (bash/busybox/curl/jq/sendat + `lib/common.sh` sağlar).
+**Gereksinimler:** ZTE F50 / MU300 (Android 13, arm64), **Magisk**, ve [`bin-utils`](https://github.com/dikeckaan/magisk-zte-f50-bin-utils) modülü (bash/busybox/curl/jq/sendat + `lib/common.sh` sağlar).
 
 ```sh
 # Magisk ile zip'i flash et, ya da bottan:
