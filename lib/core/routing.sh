@@ -160,18 +160,26 @@ route_apply() {
             #    table (exit direct, not via VPN). Add then re-assert for a short
             #    window to win the race. `ip route replace` is idempotent.
             $IP route replace default dev "$TUN_NAME" table "$TUN_TABLE" 2>/dev/null
-            # short-lived re-assert (≈16s, NOT a persistent daemon): re-add if
-            # netd flushed it. Covers the post-up churn window.
-            (
-                _n=0
-                while [ "$_n" -lt 8 ]; do
-                    sleep 2
-                    $IP route show table "$TUN_TABLE" 2>/dev/null | grep -q "default dev $TUN_NAME" \
-                        || $IP route replace default dev "$TUN_NAME" table "$TUN_TABLE" 2>/dev/null
-                    _n=$((_n + 1))
-                done
-            ) >/dev/null 2>&1 &
-            dcp_log "route_apply: default via tun0 in table $TUN_TABLE (+re-assert vs netd)"
+            # PERSISTENT keeper: netd doesn't only wipe this route at tun0-up — it
+            # rebuilds table $TUN_TABLE periodically (cellular events, etc.), each
+            # time silently dropping LAN clients to the WAN/direct path. A bounded
+            # re-assert isn't enough (clients intermittently lose the VPN). So run
+            # a lightweight loop that re-adds the route whenever it's missing, for
+            # as long as tun0 exists; it self-terminates when xray_stop removes
+            # tun0. Single instance only (pidfile guard). ~1 wakeup / 15 s.
+            KEEPER_PID="$DCP_DATA/xray/route-keeper.pid"
+            if ! { [ -f "$KEEPER_PID" ] && kill -0 "$(cat "$KEEPER_PID" 2>/dev/null)" 2>/dev/null; }; then
+                (
+                    while $IP link show "$TUN_NAME" >/dev/null 2>&1; do
+                        $IP route show table "$TUN_TABLE" 2>/dev/null | grep -q "default dev $TUN_NAME" \
+                            || $IP route replace default dev "$TUN_NAME" table "$TUN_TABLE" 2>/dev/null
+                        sleep 15
+                    done
+                    rm -f "$KEEPER_PID"
+                ) >/dev/null 2>&1 &
+                echo $! > "$KEEPER_PID"
+            fi
+            dcp_log "route_apply: default via tun0 in table $TUN_TABLE (+persistent keeper)"
 
             # 6) If vpn-gateway is absent: install our own RFC1918 rules + FORWARD
             if _vpn_gateway_installed; then
@@ -211,6 +219,13 @@ route_clear() {
     case "$mode" in
 
         tun0)
+            # Stop the persistent route keeper promptly (it would otherwise self-
+            # terminate only after tun0 disappears + its next 15 s wake).
+            KEEPER_PID="$DCP_DATA/xray/route-keeper.pid"
+            if [ -f "$KEEPER_PID" ]; then
+                kill "$(cat "$KEEPER_PID" 2>/dev/null)" 2>/dev/null || true
+                rm -f "$KEEPER_PID"
+            fi
             # Remove default route from our table
             $IP route del default dev "$TUN_NAME" table "$TUN_TABLE" 2>/dev/null || true
             $IP route flush table "$TUN_TABLE" 2>/dev/null || true
