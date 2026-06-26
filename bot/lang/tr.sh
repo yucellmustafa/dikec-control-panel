@@ -24,7 +24,18 @@ Kod ile: dili değiştirir ve botu restart eder."
 Komutlar için /help"
 
     # ─── /help (tam metin) ───────────────────────────────────────────
-    [help_full_fmt]="ZTE F50 Bot — Komutlar
+    [help_full_fmt]="Dikec Control Panel — Komutlar
+
+🔐 VPN / Xray
+/xray status — VPN durumu (çalışıyor mu, mod, çıkış)
+/xray on — VPN'i başlat
+/xray off — VPN'i durdur
+/xray route tun0|tproxy — yönlendirme modu
+/import <link> — vmess/vless/trojan linki veya abonelik URL'si içe aktar
+/profiles — kayıtlı profilleri listele
+/profile <ad> — profile geç
+/adblock status|on|off|update — reklam engelleme (DNS sinkhole)
+/sms_cmd status|on|off|secret <s>|allow <liste>|reply <true|false> — SMS ile uzaktan komut
 
 📊 Durum
 /status — Genel özet (her şey)

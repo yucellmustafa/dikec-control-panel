@@ -34,7 +34,18 @@ With a code, switches and restarts the bot."
 Type /help for commands."
 
     # ─── /help (full text, two %d placeholders: temp threshold, mem%) ─────
-    [help_full_fmt]="ZTE F50 Bot — Commands
+    [help_full_fmt]="Dikec Control Panel — Commands
+
+🔐 VPN / Xray
+/xray status — VPN status (running, mode, exit)
+/xray on — start VPN
+/xray off — stop VPN
+/xray route tun0|tproxy — routing mode
+/import <link> — import a vmess/vless/trojan link or subscription URL
+/profiles — list saved profiles
+/profile <name> — switch profile
+/adblock status|on|off|update — ad blocking (DNS sinkhole)
+/sms_cmd status|on|off|secret <s>|allow <list>|reply <true|false> — SMS remote control
 
 📊 Status
 /status — full overview
