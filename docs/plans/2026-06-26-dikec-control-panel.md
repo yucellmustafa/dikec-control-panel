@@ -23,11 +23,29 @@
 
 **Test modeli:** Bu cihaz-üstü bash projesi; "test" = modülü cihaza `adb push` edip `su -c` ile `action.sh <verb>` çağırmak ve JSON çıktıyı `jq` ile doğrulamak. Her task sonunda somut bir `adb ... | jq` doğrulama komutu ve beklenen çıktı verilir. Geliştirme makinesinde `bash -n` (syntax) ve `shellcheck` (varsa) ön-kontrol.
 
-**Yardımcı kısaltma (tüm verify komutlarında):** `S=324950664950`; `DEV=/data/adb/modules/dikec-control-panel`; push helper:
+**Cihaz test düzeneği (tüm verify komutlarında — DOĞRULANMIŞ KALIPLAR):**
+
+> KRİTİK kuralları (cihazda teyit edildi):
+> 1. `/data/adb/modules/...` ve `/data/...` altına yazmak **root** ister; `adb push` shell-user'dır → oraya doğrudan push **permission denied**. Önce `/data/local/tmp`'ye stage, sonra `su` ile kopyala.
+> 2. `adb shell su -c '...'` kalıbında host'un dış tırnağı **cihaz shell'i** tarafından soyulur; `&&`, `;`, `>`, `|` cihaz shell'ine kaçar ve **root olmayan** tarafta çalışır. Tüm bileşik komut su'ya **tek argüman** gitmeli: `adb shell "su -c \"...\""` (host çift-tırnak, içeride kaçışlı çift-tırnak). İçinde çift-tırnak/jq olan karmaşık komutları bir script'e yazıp push edip `run "sh /data/local/tmp/x.sh"` ile çalıştır.
+> 3. Cihaz modül dizinleri ve `/data/dikec` geliştirme sırasında bir kez root ile oluşturuldu (kurulu modül gibi davranır). Gerçek kurulum customize.sh ile olur; geliştirme push'ları bu dizine yazar.
+
 ```bash
-push(){ adb -s $S push "$1" "$2" >/dev/null && adb -s $S shell su -c "chmod ${3:-0755} $2"; }
-run(){ adb -s $S shell su -c "$1"; }
+S=324950664950
+DEV=/data/adb/modules/dikec-control-panel
+DCP_DATA=/data/dikec
+# Tek dosyayı modül ağacına push et (stage→su-cp):
+push(){ adb -s $S push "$1" /data/local/tmp/_st >/dev/null && \
+  adb -s $S shell "su -c \"mkdir -p \$(dirname $2); cp /data/local/tmp/_st $2; chmod ${3:-0755} $2\""; }
+# Bir dizini (örn lib/core) tar ile push et:
+pushdir(){ (cd "$1" && tar cf /tmp/_d.tar .) && adb -s $S push /tmp/_d.tar /data/local/tmp/_d.tar >/dev/null && \
+  adb -s $S shell "su -c \"mkdir -p $2; tar xf /data/local/tmp/_d.tar -C $2; chmod -R 0755 $2\""; }
+# Cihazda ROOT olarak komut çalıştır (bileşik-güvenli). Çıktı host'a döner; jq'yu host'ta uygula:
+run(){ adb -s $S shell "su -c \"$1\""; }
+# İçinde çift-tırnak/jq olan karmaşık komut için: script'e yaz→push→çalıştır:
+runscript(){ adb -s $S push "$1" /data/local/tmp/_r.sh >/dev/null && adb -s $S shell "su -c \"sh /data/local/tmp/_r.sh\""; }
 ```
+> Not: Verify adımlarındaki `push lib/core/x.sh $DEV/lib/core/x.sh` çağrıları bu `push` fonksiyonunu kullanır. `push -r lib $DEV` yerine `pushdir lib $DEV/lib` kullan. Cihaz-içi `". $DEV/lib/core/x.sh; fn"` çağrılarında env.sh'ın `DCP_MOD`/`DCP_DATA`'yı doğru çözmesi için `DCP_MOD=$DEV` zaten env.sh varsayılanıdır.
 
 ---
 
