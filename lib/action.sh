@@ -25,6 +25,7 @@ D="${0%/lib/action.sh}"; [ -d "$D/lib" ] || D=/data/adb/modules/dikec-control-pa
 . "$D/lib/core/adblock.sh"
 . "$D/lib/core/notify.sh"
 . "$D/lib/core/integrations.sh"
+. "$D/lib/core/panelauth.sh"
 . "$D/lib/core/update.sh"
 
 VERB="${1:-}"; ARG="${2:-}"; ARG2="${3:-}"
@@ -224,6 +225,25 @@ case "$VERB" in
       printf '%s' "$ARG" > "${DCP_DATA}/conf/lan_expose"
       j_ok "$("$JQ" -nc --arg v "$ARG" '{lan_expose:($v|tonumber)}')"
     fi
+    ;;
+
+  # ── panel password management (ADB / root rescue) ─────────────────────────
+  # panel_passwd <newpass> [newuser]  — set password (clears MUST_CHANGE).
+  # panel_passwd_reset                — restore admin/admin + force-change.
+  # panel_auth_info                   — {user, must_change} (no secrets).
+  panel_passwd)
+    if [ -z "$ARG" ]; then j_err "panel_passwd: yeni şifre gerekli"; exit 1; fi
+    if [ "${#ARG}" -lt 6 ]; then j_err "panel_passwd: şifre çok kısa (min 6)"; exit 1; fi
+    pa_set_password "$ARG" "$ARG2" \
+      && j_ok "$("$JQ" -nc --arg u "$(pa_user)" '{user:$u, changed:true}')" \
+      || j_err "panel_passwd başarısız"
+    ;;
+  panel_passwd_reset)
+    pa_reset && j_ok '{"user":"admin","reset":true,"must_change":true}' || j_err "reset başarısız"
+    ;;
+  panel_auth_info)
+    j_ok "$("$JQ" -nc --arg u "$(pa_user)" --argjson mc "$(pa_must_change)" \
+      '{user:$u, must_change:($mc==1)}')"
     ;;
 
   # ── system reboot ─────────────────────────────────────────────────────────

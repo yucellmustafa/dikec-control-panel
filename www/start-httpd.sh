@@ -25,17 +25,14 @@ RUNTIME_CONF="$DCP_DATA/httpd-runtime.conf"
     printf 'I:index.html\n'
 } > "$RUNTIME_CONF"
 
-if [ "$LAN_EXPOSE" = "1" ] && [ -n "$PANEL_TOKEN" ]; then
+# Auth is handled at the APPLICATION layer now: a username/password login
+# (login.cgi) issues a session cookie that api.cgi enforces. busybox basic-auth
+# is no longer used (its conf-level realm couldn't do first-login password reset
+# or per-user management). LAN mode just changes the bind address; index.html +
+# login.cgi are reachable, but all DATA endpoints require a valid session/token.
+if [ "$LAN_EXPOSE" = "1" ]; then
     BIND="0.0.0.0:8088"
-    # HTTP basic-auth: first layer of defence (api.cgi also checks token)
-    # busybox httpd.conf format: A:<path>:<user>:<crypt_or_plain_pass>
-    # Use MD5-crypt hash so the plaintext token isn't stored in the conf file.
-    _HASH=$("$BB" httpd -m "$PANEL_TOKEN" 2>/dev/null)
-    _PASS="${_HASH:-$PANEL_TOKEN}"        # fall back to plaintext if -m fails
-    # busybox httpd.conf basic-auth realm format is  /path:user:pass
-    # (NOT  A:...  — that prefix means an Allow-IP rule and would 403 everything).
-    printf '/:dikec:%s\n' "$_PASS" >> "$RUNTIME_CONF"
-    printf '[start-httpd] LAN mode: binding 0.0.0.0:8088 with basic-auth\n'
+    printf '[start-httpd] LAN mode: binding 0.0.0.0:8088 (app-layer login)\n'
 else
     BIND="127.0.0.1:8088"
     printf '[start-httpd] localhost mode: binding 127.0.0.1:8088\n'

@@ -104,10 +104,48 @@ else
 fi
 
 # ---------------------------------------------------------------------------
-# Authentication — exits 403 if token is wrong/missing
+# Authentication — a valid SESSION COOKIE (human login) OR the panel token
+# (automation / localhost) is accepted. Two special verbs are handled here:
+#   session — auth probe; returns {authed,user,must_change} WITHOUT requiring auth
+#   logout  — destroys the current session cookie
+# Everything else requires a valid session or token, else 403.
 # ---------------------------------------------------------------------------
 
-auth_check_token "$TOKEN_RAW"
+. "$DCP/lib/core/panelauth.sh"
+
+# Extract the dcp_sess cookie (if any) from the request.
+COOKIE_TOK=$(printf '%s' "${HTTP_COOKIE:-}" | tr ';' '\n' \
+    | sed -n 's/^[[:space:]]*dcp_sess=//p' | head -1 | tr -d '[:space:]')
+
+_AUTHED=0
+if pa_session_valid "$COOKIE_TOK"; then
+    _AUTHED=1
+elif [ -n "$TOKEN_RAW" ]; then
+    _STORED=$(cat "$DCP_DATA/conf/panel_token" 2>/dev/null | tr -d '\r\n')
+    if [ -n "$_STORED" ] && [ "$TOKEN_RAW" = "$_STORED" ]; then _AUTHED=1; fi
+fi
+
+# session — auth-state probe (no auth required; the SPA calls this on load)
+if [ "$VERB_RAW" = "session" ]; then
+    printf 'Content-Type: application/json\r\n\r\n'
+    "$JQ" -nc --argjson a "$_AUTHED" --arg u "$(pa_user)" \
+        --argjson mc "$(pa_must_change)" \
+        '{ok:true, authed:($a==1), user:$u, must_change:($mc==1)}'
+    exit 0
+fi
+
+# logout — clear the session
+if [ "$VERB_RAW" = "logout" ]; then
+    pa_session_destroy "$COOKIE_TOK"
+    printf 'Status: 200 OK\r\nContent-Type: application/json\r\n'
+    printf 'Set-Cookie: dcp_sess=; Path=/; Max-Age=0; HttpOnly; SameSite=Strict\r\n\r\n'
+    printf '{"ok":true}\n'
+    exit 0
+fi
+
+if [ "$_AUTHED" != "1" ]; then
+    http_error "401 Unauthorized" '{"ok":false,"error":"unauthorized"}'
+fi
 
 # ---------------------------------------------------------------------------
 # Validate verb — must be [a-zA-Z0-9_] only; no semicolons, $, spaces, etc.
