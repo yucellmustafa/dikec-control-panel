@@ -1354,7 +1354,7 @@
       var nameEl = mkEl('div', 'mod-row-name');
       nameEl.textContent = modName;  // XSS-safe
       var subEl = mkEl('div', 'mod-row-sub');
-      subEl.textContent = modId + (modVer ? ' · v' + modVer : '');  // XSS-safe
+      subEl.textContent = modId + (modVer ? ' · v' + modVer.replace(/^v/i, '') : '');  // XSS-safe; avoid double-v
       info.appendChild(nameEl);
       info.appendChild(subEl);
       row.appendChild(info);
@@ -1500,7 +1500,7 @@
         header.appendChild(badge);
       } else {
         var instBtn = mkEl('button', 'btn sm primary', 'Kur');
-        if (catVer) instBtn.title = 'v' + catVer;
+        if (catVer) instBtn.title = 'v' + catVer.replace(/^v/i, '');
         (function (mId, mName, btn) {
           btn.addEventListener('click', function () {
             btn.disabled = true;
