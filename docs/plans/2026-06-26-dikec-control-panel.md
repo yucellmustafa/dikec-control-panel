@@ -274,7 +274,10 @@ LOG="$DCP_DATA/logs/core.log"
 dcp_log(){ LOG="$DCP_DATA/logs/core.log" log_line "$*"; }
 
 # JSON çıktı sözleşmesi — tek satır
-j_ok(){  "$JQ" -nc --argjson d "${1:-{}}" '{ok:true} + $d'; }
+# NOT: ${1:-{}} POSIX sh'de bozuktur (ilk } expansion'ı kapatır → "$1}"); boş
+# nesne default'u değişkende tutulur.
+_DCP_EMPTYOBJ='{}'
+j_ok(){  "$JQ" -nc --argjson d "${1:-$_DCP_EMPTYOBJ}" '{ok:true} + $d'; }
 j_err(){ "$JQ" -nc --arg e "$1" '{ok:false, err:$e}'; }
 
 cfg_get(){ cat "$DCP_DATA/conf/$1" 2>/dev/null || printf '%s' "$2"; }
