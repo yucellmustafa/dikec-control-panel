@@ -114,7 +114,7 @@
   });
 
   // ── tab management ────────────────────────────────────────────────────────
-  var TABS = ['dash', 'xray', 'sms', 'cellular', 'integrations', 'system'];
+  var TABS = ['dash', 'xray', 'sms', 'cellular', 'clients', 'integrations', 'system'];
   var activeTab = 'dash';
 
   function switchTab(id) {
@@ -133,6 +133,7 @@
       case 'xray':         loadXray();         break;
       case 'sms':          loadSms();          break;
       case 'cellular':     loadCellular();     break;
+      case 'clients':      loadClients();      break;
       case 'integrations': loadIntegrations(); break;
       case 'system':       loadSystem();       break;
     }
@@ -241,9 +242,11 @@
       '</div>',
       '<div class="card">',
         '<h3>Profiles <span class="spacer"></span>',
+          '<button class="btn ghost sm" id="prof-probe">&#9201; Test speeds</button>',
           '<button class="btn ghost sm" id="prof-refresh">&#8635; Refresh</button>',
         '</h3>',
         '<div id="prof-list"></div>',
+        '<div id="probe-results"></div>',
       '</div>',
       '<div class="card">',
         '<h3>Import Link / Subscription</h3>',
@@ -269,6 +272,7 @@
     document.getElementById('xray-stop').addEventListener('click', xrayStop);
     document.getElementById('rm-tun0').addEventListener('click', function () { setRouteMode('tun0'); });
     document.getElementById('rm-tproxy').addEventListener('click', function () { setRouteMode('tproxy'); });
+    document.getElementById('prof-probe').addEventListener('click', probeSpeeds);
     document.getElementById('prof-refresh').addEventListener('click', loadProfiles);
     document.getElementById('import-btn').addEventListener('click', doImport);
   }
@@ -420,6 +424,54 @@
     } else {
       toast((r && r.err) || 'Import failed', 'err', 5000);
     }
+  }
+
+  async function probeSpeeds() {
+    var btn = document.getElementById('prof-probe');
+    var el  = document.getElementById('probe-results');
+    if (!btn || !el) return;
+
+    btn.disabled = true;
+    el.textContent = '';
+    el.appendChild(mkEl('div', 'muted', 'Testing all profiles — this takes several seconds per profile…'));
+
+    var r = await api('prof_probe_all');
+
+    el.textContent = '';
+    if (!r || !r.ok) {
+      el.appendChild(mkEl('div', 'empty muted', (r && r.err) || 'Probe failed'));
+      btn.disabled = false;
+      return;
+    }
+
+    var results = r.results || [];
+    if (!results.length) {
+      el.appendChild(mkEl('div', 'empty muted', 'No profiles to probe'));
+    }
+    results.forEach(function (res) {
+      var row = mkEl('div', 'kv');
+      var nameEl = mkEl('span', 'k');
+      // res.name is a profile name (server-provided) — textContent only — XSS-safe
+      nameEl.textContent = (res.ok ? '🟢' : '🔴') + ' ' + (res.name || '?');
+      var latEl = mkEl('span', 'v');
+      // latency_ms is numeric; stringify — XSS-safe
+      latEl.textContent = res.ok ? (res.latency_ms + ' ms') : 'unreachable';
+      row.appendChild(nameEl);
+      row.appendChild(latEl);
+      el.appendChild(row);
+    });
+
+    if (r.fastest) {
+      var fastest = r.fastest;  // profile name from server; used via textContent below — XSS-safe
+      var sw = mkEl('button', 'btn sm primary');
+      sw.textContent = '⚡ Switch to fastest (' + fastest + ')';  // XSS-safe — textContent
+      sw.addEventListener('click', function () {
+        switchProfile(fastest);
+      });
+      el.appendChild(sw);
+    }
+
+    btn.disabled = false;
   }
 
   // ─────────────────────────────────────────────────────────────────────────
@@ -831,6 +883,142 @@
   }
 
   // ─────────────────────────────────────────────────────────────────────────
+  // CLIENTS
+  // ─────────────────────────────────────────────────────────────────────────
+
+  function buildClients() {
+    // Static scaffold only — no server data interpolated here
+    document.getElementById('view-clients').innerHTML = [
+      '<div class="card">',
+        '<h3>Connected Clients <span class="spacer"></span>',
+          '<button class="btn ghost sm" id="clients-refresh">&#8635; Refresh</button>',
+        '</h3>',
+        '<div id="clients-list"></div>',
+      '</div>',
+      '<div class="card">',
+        '<h3>VPN Bypass</h3>',
+        '<p class="hint">',
+          'Bypassed clients skip the VPN tunnel and route directly to the internet.',
+          ' Add a client here to exclude it from Xray proxying.',
+        '</p>',
+        '<div id="bypass-list"></div>',
+      '</div>'
+    ].join('');
+
+    document.getElementById('clients-refresh').addEventListener('click', loadClients);
+  }
+
+  async function loadClients() {
+    if (activeTab !== 'clients' || document.hidden) return;
+
+    var listEl   = document.getElementById('clients-list');
+    var bypassEl = document.getElementById('bypass-list');
+    if (!listEl || !bypassEl) return;
+
+    listEl.textContent   = '';
+    bypassEl.textContent = '';
+    listEl.appendChild(mkEl('div', 'muted', 'Loading…'));
+
+    var results = await Promise.all([api('clients'), api('bypass_list')]);
+    var cr = results[0], br = results[1];
+
+    listEl.textContent   = '';
+    bypassEl.textContent = '';
+
+    // Build bypass lookup — bypass_list returns {bypass:[<ip>,...]}
+    var bypassSet = {};
+    var bypassIps = [];
+    if (br && br.ok && Array.isArray(br.bypass)) {
+      br.bypass.forEach(function (ip) { bypassSet[ip] = true; bypassIps.push(ip); });
+    }
+
+    // ── Connected clients ────────────────────────────────────────────────────
+    // clients verb returns {ok:true, clients:[{ip,mac,hostname}]}
+    // Defensive: also handle legacy {ok:true, client_count:N} shape.
+    var connectedIps = {};
+    if (!cr || !cr.ok) {
+      listEl.appendChild(mkEl('div', 'empty muted', (cr && cr.err) || 'Failed to load clients'));
+    } else if (Array.isArray(cr.clients)) {
+      var clients = cr.clients;
+      if (!clients.length) {
+        listEl.appendChild(mkEl('div', 'empty muted', 'No connected clients'));
+      }
+      clients.forEach(function (c) {
+        var ip       = String(c.ip       || '');
+        var mac      = String(c.mac      || '');
+        var hostname = String(c.hostname || '');
+        if (ip) connectedIps[ip] = true;
+
+        var bypassed = !!bypassSet[ip];
+
+        var row = mkEl('div', 'kv');
+        var info = mkEl('span', 'k');
+        // ip, hostname, mac are attacker-influenced (LAN device sets its own name)
+        // — always set via textContent, never innerHTML — XSS-safe
+        var label = ip;
+        if (hostname) label = hostname + ' (' + ip + ')';
+        if (mac)      label = label + ' · ' + mac;
+        info.textContent = label;  // XSS-safe
+
+        var btnEl = mkEl('button', 'btn sm' + (bypassed ? ' danger' : ''));
+        btnEl.textContent = bypassed ? 'Un-bypass' : 'Bypass';  // XSS-safe
+        (function (theIp, wasBypassed) {
+          btnEl.addEventListener('click', function () {
+            api(wasBypassed ? 'bypass_del' : 'bypass_add', theIp).then(function (r) {
+              if (r && r.ok) {
+                // theIp came from the server clients list; display via toast (textContent internally)
+                toast((wasBypassed ? 'Bypass removed: ' : 'Bypassed: ') + theIp, 'ok');
+                loadClients();
+              } else {
+                toast((r && r.err) || 'Failed', 'err');
+              }
+            });
+          });
+        }(ip, bypassed));
+
+        row.appendChild(info);
+        row.appendChild(btnEl);
+        listEl.appendChild(row);
+      });
+    } else {
+      // Legacy shape: just show count
+      var cnt = cr.client_count != null ? String(cr.client_count) : '?';
+      listEl.appendChild(mkEl('div', 'muted', cnt + ' ARP client(s) detected — detailed list not available'));
+    }
+
+    // ── Bypass panel ─────────────────────────────────────────────────────────
+    // Show any bypass IPs that are NOT currently connected (orphaned bypass entries)
+    var offlineBypass = bypassIps.filter(function (ip) { return !connectedIps[ip]; });
+
+    if (!bypassIps.length) {
+      bypassEl.appendChild(mkEl('div', 'empty muted', 'No bypassed clients'));
+    } else if (offlineBypass.length) {
+      bypassEl.appendChild(mkEl('div', 'muted', 'Bypassed IPs not currently connected:'));
+      offlineBypass.forEach(function (ip) {
+        var row  = mkEl('div', 'kv');
+        var ipEl = mkEl('span', 'k');
+        ipEl.textContent = ip;  // XSS-safe — IP string from bypass.list
+        var delBtn = mkEl('button', 'btn sm danger', 'Remove');
+        (function (theIp) {
+          delBtn.addEventListener('click', function () {
+            api('bypass_del', theIp).then(function (r) {
+              if (r && r.ok) {
+                toast('Bypass removed: ' + theIp, 'ok');
+                loadClients();
+              } else {
+                toast((r && r.err) || 'Failed', 'err');
+              }
+            });
+          });
+        }(ip));
+        row.appendChild(ipEl);
+        row.appendChild(delBtn);
+        bypassEl.appendChild(row);
+      });
+    }
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────
   // INIT
   // ─────────────────────────────────────────────────────────────────────────
 
@@ -842,6 +1030,7 @@
     buildXray();
     buildSms();
     buildCellular();
+    buildClients();
     buildIntegrations();
     buildSystem();
 
