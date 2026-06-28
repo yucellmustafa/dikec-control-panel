@@ -111,16 +111,7 @@ at_imei_set(){
         *[!0-9]*) return 1;;
     esac
     [ "${#imei}" -eq 15 ] || return 1
-
-    # Unisoc/Spreadtrum modemlerinde IMEI değiştirmek için kullanılan bilinen tüm AT komutlarını
-    # sırayla gönderiyoruz (farklı Unisoc modem yazılımları ve serileri için tam uyumluluk).
-    at_raw "AT+SPICGI=1,\"$imei\""
-    at_raw "AT+SPIMEI=\"$imei\""
-    at_raw "AT+EGMR=1,7,\"$imei\""
-    
-    # Dual SIM cihazlarda SIM2 için de yazma denemesi (SPICGI=2 veya EGMR=1,10)
-    at_raw "AT+SPICGI=2,\"$imei\""
-    at_raw "AT+EGMR=1,10,\"$imei\""
+    at_raw "AT+SPIMEI=0,\"$imei\""
 
     return 0
 }
