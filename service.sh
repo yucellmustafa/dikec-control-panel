@@ -27,7 +27,8 @@ LOG="$DATA/logs/bot.log" supervisor_loop "$MODDIR/bot/bot.sh" 15
     until [ "$(getprop sys.boot_completed)" = "1" ]; do
         sleep 2
     done
-    sleep 5
+    # Ağ servislerinin (netd/cellular) tam yerleşmesi için ek süre
+    sleep 30
 
     # xray yalnızca kullanıcı etkinleştirmişse (route mode'a göre tun0/tproxy)
     if [ "$(cat "$DATA/conf/xray_enabled" 2>/dev/null)" = "1" ]; then

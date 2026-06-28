@@ -119,6 +119,23 @@ _xray_watchdog_start() {
                 alive=false
             fi
 
+            # 4) Routing / ip rule kontrolü (Android netd boot sonrası kuralları ezmiş olabilir)
+            if $alive; then
+                local rmode
+                rmode=$(cfg_get route_mode tun0)
+                if [ "$rmode" = "tun0" ]; then
+                    if ! /system/bin/ip rule show 2>/dev/null | grep -q '200'; then
+                        dcp_log "watchdog: ip rule for table 200 missing (wiped by netd?)"
+                        alive=false
+                    fi
+                elif [ "$rmode" = "tproxy" ]; then
+                    if ! /system/bin/ip rule show 2>/dev/null | grep -q '100'; then
+                        dcp_log "watchdog: ip rule for table 100 missing (wiped by netd?)"
+                        alive=false
+                    fi
+                fi
+            fi
+
             # Herşey yolunda → sayacı sıfırla
             if $alive; then
                 fails=0
